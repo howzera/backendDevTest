@@ -8,6 +8,8 @@ from fastapi import FastAPI
 from app.application.get_similar_products import GetSimilarProducts
 from app.config import Settings
 from app.infrastructure.http_api.product_router import register_exception_handlers, router
+from app.infrastructure.product_client.cached_product_repository import CachedProductRepository
+from app.infrastructure.product_client.circuit_breaker import CircuitBreakerProductRepository
 from app.infrastructure.product_client.http_product_repository import HttpProductRepository
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -28,7 +30,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 max_keepalive_connections=settings.upstream_max_connections,
             ),
         ) as client:
-            repository = HttpProductRepository(client)
+            # Decorators around the same port: cache -> circuit breaker -> HTTP.
+            repository = CachedProductRepository(
+                CircuitBreakerProductRepository(
+                    HttpProductRepository(client),
+                    failure_threshold=settings.circuit_failure_threshold,
+                    reset_timeout_seconds=settings.circuit_reset_timeout_seconds,
+                ),
+                ttl_seconds=settings.cache_ttl_seconds,
+                not_found_ttl_seconds=settings.cache_not_found_ttl_seconds,
+            )
             app.state.get_similar_products = GetSimilarProducts(repository, settings.detail_timeout_seconds)
             yield
 

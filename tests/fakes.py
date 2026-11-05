@@ -8,6 +8,19 @@ def product(product_id: str) -> ProductDetail:
     return ProductDetail(id=product_id, name=f"Product {product_id}", price=10.0, availability=True)
 
 
+class FakeClock:
+    """Controllable time source for TTL and circuit breaker tests."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
 class FakeProductRepository:
     """In-memory ProductRepository that can simulate missing, failing and slow products."""
 

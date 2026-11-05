@@ -20,6 +20,10 @@ class Settings:
     # Hard limit for any single upstream HTTP call.
     upstream_timeout_seconds: float = 10.0
     upstream_max_connections: int = 200
+    cache_ttl_seconds: float = 300.0
+    cache_not_found_ttl_seconds: float = 60.0
+    circuit_failure_threshold: int = 5
+    circuit_reset_timeout_seconds: float = 10.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -28,4 +32,8 @@ class Settings:
             detail_timeout_seconds=_float_env("DETAIL_TIMEOUT_SECONDS", cls.detail_timeout_seconds),
             upstream_timeout_seconds=_float_env("UPSTREAM_TIMEOUT_SECONDS", cls.upstream_timeout_seconds),
             upstream_max_connections=_int_env("UPSTREAM_MAX_CONNECTIONS", cls.upstream_max_connections),
+            cache_ttl_seconds=_float_env("CACHE_TTL_SECONDS", cls.cache_ttl_seconds),
+            cache_not_found_ttl_seconds=_float_env("CACHE_NOT_FOUND_TTL_SECONDS", cls.cache_not_found_ttl_seconds),
+            circuit_failure_threshold=_int_env("CIRCUIT_FAILURE_THRESHOLD", cls.circuit_failure_threshold),
+            circuit_reset_timeout_seconds=_float_env("CIRCUIT_RESET_TIMEOUT_SECONDS", cls.circuit_reset_timeout_seconds),
         )
