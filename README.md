@@ -138,3 +138,11 @@ El tiempo se inyecta (`clock`) para testear TTL y circuit breaker sin `sleep`.
 - **Stale-while-revalidate**: servir el dato expirado mientras se refresca en segundo plano.
 - **Fallar rápido con productos conocidos como lentos** (p. ej. el 10000) en lugar de esperar el timeout en cada petición.
 - **Health checks** (`/health`) y límites de concurrencia por dependencia (bulkhead).
+
+## Cómo encajaría en un sistema mayor
+
+Junto con el [frontend de tienda](https://github.com/howzera/itx-frontend-test) y el [servicio de notificaciones con IA](https://github.com/howzera/ai-python-test):
+- la página de detalle del frontend mostraría "Productos similares" llamando a este endpoint a través de un API Gateway (CORS, autenticación, rate limit);
+- al añadir a la cesta, un evento en una cola dispararía la notificación de confirmación.
+
+Para ejecutarlo junto al servicio de notificaciones en la misma máquina, hay que cambiar los puertos, porque ambos usan 5000 (servicio) y 3001 (mock). La URL de las APIs consumidas es configurable con `PRODUCTS_API_BASE_URL`.
