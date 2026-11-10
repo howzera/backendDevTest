@@ -13,33 +13,72 @@ GET /product/{productId}/similar
 503 -> {"detail": "Similar products for '1' are temporarily unavailable"}
 ```
 
-## Ejecución
+## Guía rápida: ejecución y pruebas
 
-Requisitos: Docker. En Windows/macOS puede ser necesario compartir la carpeta `shared` en Docker Desktop.
+### Puertos en localhost
 
-```bash
-# 1. Mocks, InfluxDB, Grafana y la aplicación (puerto 5000)
-docker-compose up -d simulado influxdb grafana
-docker-compose up -d --build app
+| Puerto | Servicio |
+|---|---|
+| **5000** | Esta API (`app`) |
+| **3001** | Mock de las APIs existentes (`simulado`) |
+| **3000** | Grafana (resultados de k6) |
+| **8086** | InfluxDB (métricas de k6) |
 
-# 2. Comprobación rápida
-curl http://localhost:5000/product/1/similar
+> **Para evitar conflictos de puertos:** el [servicio de notificaciones](https://github.com/howzera/ai-python-test) usa también 5000, 3001 y 3000. Con la configuración por defecto, no levantes los dos a la vez: ejecuta `docker-compose down` en uno antes de arrancar el otro. El [frontend](https://github.com/howzera/itx-frontend-test) usa el 5173 y no choca con ninguno.
 
-# 3. Test de rendimiento
-docker-compose run --rm k6 run scripts/test.js
-# Resultados: http://localhost:3000/d/Le2Ku9NMk/k6-performance-test
-```
+### Paso a paso
 
-Sin Docker (Python 3.12):
+1. **Iniciar Docker Desktop** y esperar a que esté en marcha. En Windows/macOS, compartir la carpeta `shared` si Docker lo pide.
+2. **Clonar y entrar en la carpeta:**
+   ```bash
+   git clone https://github.com/howzera/backendDevTest.git
+   cd backendDevTest
+   ```
+3. **Ejecutar los tests** (Python 3.12, sin Docker ni red):
+   ```bash
+   python -m venv .venv && .venv/Scripts/activate    # Linux/macOS: source .venv/bin/activate
+   pip install -r requirements-dev.txt
+   pytest -q                                          # esperado: 35 passed
+   ```
+4. **Levantar los mocks y las métricas:**
+   ```bash
+   docker-compose up -d simulado influxdb grafana
+   ```
+5. **Comprobar el mock:** `curl http://localhost:3001/product/1/similarids` → `[2,3,4]`
+6. **Levantar la API (puerto 5000):**
+   ```bash
+   docker-compose up -d --build app
+   ```
+7. **Probar los escenarios** con `curl http://localhost:5000/product/{id}/similar` o desde Swagger (http://localhost:5000/docs). Hacerlo **en este orden**, porque las filas 2 y 3 dependen de la caché:
 
-```bash
-python -m venv .venv && .venv/Scripts/activate    # Linux/macOS: source .venv/bin/activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --host 0.0.0.0 --port 5000   # usa http://localhost:3001 por defecto
-pytest                                             # 35 tests
-```
+   | # | Petición | Resultado esperado | Tiempo | Qué demuestra |
+   |---|---|---|---|---|
+   | 1 | `/product/1/similar` | 200 → 2, 3, 4 | ~0,1 s | Caso normal, orden de similitud |
+   | 2 | `/product/2/similar` | 200 → 3, 100 | ~1,5 s | El 1000 (5 s) supera el timeout: respuesta parcial |
+   | 3 | `/product/2/similar` (esperar ~5 s) | 200 → 3, 100, 1000 | ~5 ms | *Late completion*: el 1000 entró en caché |
+   | 4 | `/product/3/similar` | 200 → 100 | ~1,5 s | 1000 y 10000 demasiado lentos: se omiten |
+   | 5 | `/product/4/similar` | 200 → 1, 2 | ms | El similar 5 da 404: se omite |
+   | 6 | `/product/5/similar` | 200 → 1, 2 | ms | El similar 6 da 500: se omite |
+   | 7 | `/product/999/similar` | **404** `Product '999' not found` | ms | El producto pedido no existe |
 
-Swagger de la API: http://localhost:5000/docs
+8. **Probar la resiliencia** (dependencia caída):
+
+   | Paso | Comando | Resultado esperado |
+   |---|---|---|
+   | Parar el mock | `docker-compose stop simulado` | - |
+   | Producto no cacheado | `curl http://localhost:5000/product/7/similar` | **503** `Similar products for '7' are temporarily unavailable` |
+   | Producto cacheado | `curl http://localhost:5000/product/1/similar` | **200** → 2, 3, 4 (desde la caché) |
+   | Volver a levantar el mock | `docker-compose up -d simulado` | - |
+
+9. **Vaciar la caché** (para repetir las pruebas): `docker-compose restart app`. Sin reinicio, caduca sola a los 5 minutos.
+10. **Prueba de carga k6:**
+    ```bash
+    docker-compose run --rm k6 run scripts/test.js
+    ```
+    Resultados en Grafana: http://localhost:3000/d/Le2Ku9NMk/k6-performance-test (rango "Last 15 minutes" y refrescar).
+11. **Parar todo:** `docker-compose down`
+
+> En Windows PowerShell, usa `curl.exe` en lugar de `curl`.
 
 ## Arquitectura hexagonal
 
