@@ -9,13 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 class GetSimilarProducts:
-    """Use case: detail of the products similar to a given one, ordered by similarity.
+    """Use case: details of the products similar to a given one, in similarity order.
 
-    Business rules:
-    - If the product does not exist, ProductNotFoundError propagates (the API answers 404).
-    - Details are fetched concurrently; the similarity order is preserved.
-    - A similar product that fails, does not exist or is slower than `detail_timeout`
-      is left out (partial response): a missing recommendation is better than no page.
+    Details are fetched concurrently. A similar product that fails, does not exist or
+    exceeds `detail_timeout` is left out (partial response).
     """
 
     def __init__(self, repository: ProductRepository, detail_timeout_seconds: float) -> None:

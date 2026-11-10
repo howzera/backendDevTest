@@ -21,7 +21,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        # One shared client = one connection pool, reused by every request (keep-alive).
+        # One shared client: a single connection pool for every request.
         async with httpx.AsyncClient(
             base_url=settings.products_api_base_url,
             timeout=settings.upstream_timeout_seconds,

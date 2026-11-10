@@ -21,15 +21,11 @@ class _Entry:
 
 
 class CachedProductRepository:
-    """ProductRepository decorator that adds an in-memory TTL cache with single-flight.
+    """ProductRepository decorator: in-memory TTL cache with single-flight.
 
-    - Single-flight: concurrent requests for the same key share ONE upstream call
-      (200 users asking for product 1 at the same time -> 1 call, not 200).
-    - Late completion: the shared call is shielded, so when a caller gives up on a slow
-      product (detail timeout), the call keeps running and its result is cached for the
-      next requests.
-    - Successful answers and "not found" are cached (the data does not change per request);
-      failures are not cached, so the next request retries (the circuit breaker limits that).
+    Concurrent requests for the same key share one upstream call. The call is shielded,
+    so a caller that times out does not cancel it and its result is still cached.
+    Successes and "not found" are cached; failures are not.
     """
 
     def __init__(

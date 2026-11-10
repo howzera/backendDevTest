@@ -58,10 +58,9 @@ class CircuitBreaker:
 
 
 class CircuitBreakerProductRepository:
-    """ProductRepository decorator with one circuit breaker per upstream resource.
+    """ProductRepository decorator with one circuit breaker per resource (e.g. "product:6").
 
-    Per resource (e.g. "product:6") and not global: one broken product must not cut off
-    the healthy ones. "Not found" is a valid answer, so it counts as a success.
+    A broken product does not cut off the healthy ones. "Not found" counts as a success.
     """
 
     def __init__(

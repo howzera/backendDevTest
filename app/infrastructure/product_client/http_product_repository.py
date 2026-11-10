@@ -7,10 +7,9 @@ from app.domain.models import ProductDetail
 class HttpProductRepository:
     """ProductRepository adapter for the existing product APIs (see existingApis.yaml).
 
-    Translates HTTP into domain terms: 404 -> ProductNotFoundError; any other error,
-    timeout, connection problem or unexpected body -> ProductUnavailableError.
-    Decisions are made on the status code only: the upstream 404 body is sometimes
-    JSON and sometimes plain text, and the 500 body is empty.
+    404 -> ProductNotFoundError; any other error, timeout or unexpected body ->
+    ProductUnavailableError. Only the status code is used: the upstream 404 body is
+    sometimes plain text and the 500 body is empty.
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
